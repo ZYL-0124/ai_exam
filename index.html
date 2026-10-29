@@ -188,6 +188,9 @@ let S = load();
 function load(){ try{return JSON.parse(localStorage.getItem('quiz_v2'))||{}}catch(e){return{}} }
 function save(){ localStorage.setItem('quiz_v2', JSON.stringify(S)); }
 function def(q,i){ if(!S[i]) S[i]={st:'',ok:null}; return S[i]; }
+// 是否已进入"锁定/已判分"状态：单选/判断已答、或多选已提交（st.ok 已被设置）。
+// 注意：多选在未提交前 st.st 非空但 st.ok 仍为 null，不算锁定，仍可继续勾选。
+function isLocked(st){ return st.done===true || (st.st!=='' && st.ok!==null); }
 function show(v){ document.querySelectorAll('.view').forEach(e=>e.classList.remove('on')); document.getElementById('v-'+v).classList.add('on'); window.scrollTo(0,0); }
 function goHome(){ stopTimer(); renderHome(); show('home'); }
 function renderHome(){
@@ -239,7 +242,7 @@ function renderQ(){
   document.getElementById('fav-btn').classList.toggle('on',faved);
   let h=`<div class="qtop"><span><span class="tag ${q.type[0]}">${TYPE_NAME[q.type]}</span>第 ${q.num} 题 · ${cur.idx+1}/${cur.list.length}</span><span>${st.ok===true?'✅答对':st.ok===false?'❌答错':''}</span></div>`;
   h+=`<div class="stem">${esc(q.stem)}</div>`;
-  const answered=st.st!=='';
+  const answered=isLocked(st);
   if(q.type==='judge'){
     ['正确','错误'].forEach(o=>{
       const cls=answered?(o===q.ans[0]?'right':(st.st===o?'wrong':'')):(st.st===o?'sel':'');
@@ -268,7 +271,7 @@ function renderQ(){
 }
 function pickOpt(lt){
   const [q,id]=cur.list[cur.idx]; const st=def(q,id);
-  if(st.st!=='')return;
+  if(isLocked(st))return;
   if(q.type==='single'){ answer(lt); return; }
   let arr=st.st?st.st.split(',').filter(x=>x):[];
   arr.includes(lt)?arr=arr.filter(x=>x!==lt):arr.push(lt);
@@ -279,12 +282,12 @@ function submitMulti(){
   if(!st.st)return;
   const picked=st.st.split(',');
   const ok=picked.length===q.ans.length&&picked.every(p=>q.ans.includes(p));
-  st.ok=ok; renderQ();
+  st.ok=ok; st.done=true; renderQ();
 }
 function answer(val){
   const [q,id]=cur.list[cur.idx]; const st=def(q,id);
-  if(st.st!=='')return;
-  st.st=val; st.ok=val===q.ans[0];
+  if(isLocked(st))return;
+  st.st=val; st.ok=val===q.ans[0]; st.done=true;
   renderQ();
 }
 function prevQ(){ if(cur.idx>0){cur.idx--;renderQ();} }
